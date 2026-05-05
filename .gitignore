@@ -1,0 +1,8 @@
+# Exclude everything by default
+/*
+
+# Except the assessment PDF
+!/Fathom Marine Software Engineer Assessment.pdf
+
+# Also ignore .gitignore changes if desired (remove this line if you want to track it)
+!.gitignore
