@@ -17,10 +17,10 @@ export default function RegisterPage() {
 
   async function loadShips() {
     try {
-      const res = await api.get<Ship[]>("/ships");
+      const res = await api.get<Ship[]>("/ships/names");
       setShips(res.data);
     } catch {
-      // ignore if not authenticated yet
+      // ignore on failure
     }
   }
 

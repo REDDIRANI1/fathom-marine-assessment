@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from typing import List
 from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserLogin, UserOut, TokenOut
-from app.auth import hash_password, verify_password, create_access_token
+from app.auth import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -35,3 +36,16 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
     token = create_access_token(str(user.id), user.role.value)
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
+
+
+@router.get("/me", response_model=UserOut)
+def me(current_user: User = Depends(get_current_user)):
+    return UserOut.model_validate(current_user)
+
+
+@router.get("/users", response_model=List[UserOut])
+def list_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = db.query(User)
+    if current_user.role.value == "crew" and current_user.ship_id:
+        query = query.filter(User.ship_id == current_user.ship_id)
+    return query.all()

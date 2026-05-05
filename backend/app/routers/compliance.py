@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_db
 from app.models import User, Ship
 from app.schemas import ComplianceStats, ShipCompliance
-from app.auth import get_current_user
+from app.auth import get_current_user, require_admin
 from app.services.compliance import get_compliance_stats
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
@@ -21,7 +21,7 @@ def compliance_overview(
     return get_compliance_stats(db, str(ship_id) if ship_id else None)
 
 @router.get("/ships", response_model=List[ShipCompliance])
-def compliance_by_ship(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def compliance_by_ship(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     ships = db.query(Ship).all()
     results = []
     for ship in ships:

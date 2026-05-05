@@ -3,10 +3,15 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app.models import Ship, User
-from app.schemas import ShipCreate, ShipOut
+from app.schemas import ShipCreate, ShipOut, ShipNameOut
 from app.auth import get_current_user, require_admin
 
 router = APIRouter(prefix="/ships", tags=["ships"])
+
+@router.get("/names", response_model=List[ShipNameOut])
+def list_ship_names(db: Session = Depends(get_db)):
+    ships = db.query(Ship).all()
+    return [{"id": s.id, "name": s.name} for s in ships]
 
 @router.get("", response_model=List[ShipOut])
 def list_ships(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

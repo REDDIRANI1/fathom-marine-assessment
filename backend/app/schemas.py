@@ -14,6 +14,10 @@ class ShipOut(BaseModel):
     class Config:
         from_attributes = True
 
+class ShipNameOut(BaseModel):
+    id: UUID
+    name: str
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str

@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import api from "../api";
-import type { SafetyDrill, Ship } from "../types";
+import type { SafetyDrill, Ship, User } from "../types";
 
 export default function DrillsPage() {
   const { user } = useAuth();
   const [drills, setDrills] = useState<SafetyDrill[]>([]);
   const [ships, setShips] = useState<Ship[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [selectedDrill, setSelectedDrill] = useState<string | null>(null);
+  const [attendanceUsers, setAttendanceUsers] = useState<User[]>([]);
+  const [attendanceMap, setAttendanceMap] = useState<Record<string, boolean>>({});
+  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, boolean>>({});
 
   const [form, setForm] = useState({
     drill_type: "",
@@ -35,6 +39,32 @@ export default function DrillsPage() {
 
   async function markComplete(id: string) {
     await api.patch(`/drills/${id}/complete`);
+    loadDrills();
+  }
+
+  async function openAttendance(drillId: string) {
+    setSelectedDrill(drillId);
+    setAttendanceMap({});
+    try {
+      const [usersRes, recordsRes] = await Promise.all([
+        api.get<User[]>("/auth/users"),
+        api.get<{ user_id: string; attended: boolean }[]>(`/drills/${drillId}/attendance`),
+      ]);
+      setAttendanceUsers(usersRes.data);
+      const recMap: Record<string, boolean> = {};
+      recordsRes.data.forEach((r) => { recMap[r.user_id] = r.attended; });
+      setAttendanceRecords(recMap);
+    } catch {
+      // crew users get filtered list
+    }
+  }
+
+  async function submitAttendance() {
+    if (!selectedDrill) return;
+    const entries = Object.entries(attendanceMap).map(([user_id, attended]) => ({ user_id, attended }));
+    if (entries.length === 0) return;
+    await api.post(`/drills/${selectedDrill}/attendance`, entries);
+    setSelectedDrill(null);
     loadDrills();
   }
 
@@ -68,6 +98,27 @@ export default function DrillsPage() {
         </div>
       )}
 
+      {selectedDrill && (
+        <div className="bg-white rounded-lg shadow p-4 space-y-3">
+          <h2 className="font-semibold">Mark Attendance</h2>
+          {attendanceUsers.length === 0 && <p className="text-gray-400 text-sm">No crew members available for this ship.</p>}
+          {attendanceUsers.map((u) => (
+            <label key={u.id} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={attendanceMap[u.id] ?? attendanceRecords[u.id] ?? false}
+                onChange={(e) => setAttendanceMap({ ...attendanceMap, [u.id]: e.target.checked })}
+              />
+              <span>{u.name} ({u.email})</span>
+            </label>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={submitAttendance} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Save Attendance</button>
+            <button onClick={() => setSelectedDrill(null)} className="text-gray-500 px-4 py-2 rounded hover:bg-gray-100">Cancel</button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3">
         {drills.map((drill) => (
           <div key={drill.id} className="bg-white rounded-lg shadow p-4 flex justify-between items-center">
@@ -84,9 +135,14 @@ export default function DrillsPage() {
                 {drill.status}
               </span>
               {drill.status === "scheduled" && (
-                <button onClick={() => markComplete(drill.id)} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-                  Mark Complete
-                </button>
+                <>
+                  <button onClick={() => openAttendance(drill.id)} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                    Attendance
+                  </button>
+                  <button onClick={() => markComplete(drill.id)} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                    Mark Complete
+                  </button>
+                </>
               )}
             </div>
           </div>

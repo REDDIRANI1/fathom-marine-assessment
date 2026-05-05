@@ -32,14 +32,14 @@ def list_tasks(
     return query.order_by(MaintenanceTask.due_date.asc()).all()
 
 @router.post("", response_model=TaskOut, status_code=201)
-def create_task(data: TaskCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_task(data: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     task = MaintenanceTask(
         title=data.title,
         description=data.description,
         due_date=data.due_date,
         ship_id=data.ship_id,
         assigned_to=data.assigned_to,
-        created_by=_.id,
+        created_by=current_user.id,
     )
     db.add(task)
     db.commit()

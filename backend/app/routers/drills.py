@@ -35,13 +35,13 @@ def list_drills(
     return query.order_by(SafetyDrill.scheduled_date.asc()).all()
 
 @router.post("", response_model=DrillOut, status_code=201)
-def create_drill(data: DrillCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_drill(data: DrillCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     drill = SafetyDrill(
         drill_type=data.drill_type,
         description=data.description,
         scheduled_date=data.scheduled_date,
         ship_id=data.ship_id,
-        created_by=_.id,
+        created_by=current_user.id,
     )
     db.add(drill)
     db.commit()
@@ -53,9 +53,16 @@ def mark_attendance(drill_id: UUID, data: List[AttendanceCreate], db: Session = 
     drill = db.query(SafetyDrill).filter(SafetyDrill.id == drill_id).first()
     if not drill:
         raise HTTPException(status_code=404, detail="Drill not found")
+    if current_user.role.value == "crew" and current_user.ship_id != drill.ship_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this ship's drills")
+    if current_user.role.value == "crew":
+        crew_entry = next((e for e in data if e.user_id == current_user.id), None)
+        filtered = [crew_entry] if crew_entry else []
+    else:
+        filtered = data
 
     records = []
-    for entry in data:
+    for entry in filtered:
         existing = db.query(DrillAttendance).filter(
             DrillAttendance.drill_id == drill_id,
             DrillAttendance.user_id == entry.user_id,
@@ -78,13 +85,17 @@ def get_attendance(drill_id: UUID, db: Session = Depends(get_db), current_user: 
     drill = db.query(SafetyDrill).filter(SafetyDrill.id == drill_id).first()
     if not drill:
         raise HTTPException(status_code=404, detail="Drill not found")
+    if current_user.role.value == "crew" and current_user.ship_id != drill.ship_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this ship's drills")
     return db.query(DrillAttendance).filter(DrillAttendance.drill_id == drill_id).all()
 
 @router.patch("/{drill_id}/complete", response_model=DrillOut)
-def complete_drill(drill_id: UUID, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def complete_drill(drill_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     drill = db.query(SafetyDrill).filter(SafetyDrill.id == drill_id).first()
     if not drill:
         raise HTTPException(status_code=404, detail="Drill not found")
+    if current_user.role.value == "crew" and current_user.ship_id != drill.ship_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this ship's drills")
     drill.status = "completed"
     db.commit()
     db.refresh(drill)
