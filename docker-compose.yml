@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fathom
+      POSTGRES_PASSWORD: fathom
+      POSTGRES_DB: fathom_marine
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://fathom:fathom@db:5432/fathom_marine
+      JWT_SECRET: dev-secret-change-in-production
+    depends_on:
+      - db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:
