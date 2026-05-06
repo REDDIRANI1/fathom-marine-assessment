@@ -78,4 +78,14 @@ Frontend runs on `http://localhost:5173`, API on `http://localhost:8000`.
 
 6 tables: `ships`, `users`, `maintenance_tasks`, `task_comments`, `safety_drills`, `drill_attendance`
 
-Full schema in `docs/architecture/data-domain.md`
+See `backend/app/models.py` for the full SQLAlchemy schema.
+
+## Demo Credentials
+
+The app auto-seeds on first run. Use these to log in:
+
+| User | Email | Password | Role | Ship |
+|---|---|---|---|---|
+| Captain Morgan | `admin@fathom.ai` | `admin123` | Admin | — |
+| Jack Sparrow | `crew1@fathom.ai` | `crew123` | Crew | MV Horizon |
+| Rose Dawson | `crew2@fathom.ai` | `crew123` | Crew | SS Pacific |

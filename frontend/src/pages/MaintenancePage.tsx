@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import api from "../api";
-import type { MaintenanceTask, Ship } from "../types";
+import type { MaintenanceTask, Ship, User } from "../types";
 
 export default function MaintenancePage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [ships, setShips] = useState<Ship[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState({ status: "", ship_id: "" });
   const [commentText, setCommentText] = useState<Record<string, string>>({});
@@ -15,7 +16,10 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     loadTasks();
-    if (user?.role === "admin") api.get<Ship[]>("/ships").then((r) => setShips(r.data));
+    if (user?.role === "admin") {
+      api.get<Ship[]>("/ships").then((r) => setShips(r.data));
+      api.get<User[]>("/auth/users").then((r) => setUsers(r.data.filter((u) => u.role === "crew")));
+    }
   }, [user, filter]);
 
   async function loadTasks() {
@@ -65,6 +69,10 @@ export default function MaintenancePage() {
             {ships.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <textarea placeholder="Description (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full border rounded px-3 py-2" />
+          <select value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} className="w-full border rounded px-3 py-2">
+            <option value="">Assign to (optional)</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
           <button onClick={handleCreate} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Save</button>
         </div>
       )}
