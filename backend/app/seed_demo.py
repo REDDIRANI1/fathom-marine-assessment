@@ -312,7 +312,7 @@ def upsert_drill(db, demo_drill: DemoDrill, ship_lookup: dict[str, Ship], user_l
         .filter(
             SafetyDrill.drill_type == demo_drill.drill_type,
             SafetyDrill.ship_id == ship_lookup[demo_drill.ship_name].id,
-            SafetyDrill.scheduled_date == scheduled_date,
+            SafetyDrill.description == demo_drill.description,
         )
         .first()
     )
@@ -330,6 +330,7 @@ def upsert_drill(db, demo_drill: DemoDrill, ship_lookup: dict[str, Ship], user_l
         db.flush()
     else:
         drill.description = demo_drill.description
+        drill.scheduled_date = scheduled_date
         drill.ship_id = ship_lookup[demo_drill.ship_name].id
         drill.created_by = admin_user.id
         drill.status = demo_drill.status
