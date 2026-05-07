@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import api from "../api";
 import type { MaintenanceTask, Ship, User } from "../types";
@@ -14,39 +14,42 @@ export default function MaintenancePage() {
 
   const [form, setForm] = useState({ title: "", due_date: "", ship_id: "", description: "", assigned_to: "" });
 
-  useEffect(() => {
-    loadTasks();
-    if (user?.role === "admin") {
-      api.get<Ship[]>("/ships").then((r) => setShips(r.data));
-      api.get<User[]>("/auth/users").then((r) => setUsers(r.data.filter((u) => u.role === "crew")));
-    }
-  }, [user, filter]);
-
-  async function loadTasks() {
+  const loadTasks = useCallback(async () => {
     const params: Record<string, string> = {};
     if (filter.status) params.status = filter.status;
     if (filter.ship_id) params.ship_id = filter.ship_id;
     const res = await api.get<MaintenanceTask[]>("/tasks", { params });
     setTasks(res.data);
-  }
+  }, [filter.ship_id, filter.status]);
+
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (filter.status) params.status = filter.status;
+    if (filter.ship_id) params.ship_id = filter.ship_id;
+    api.get<MaintenanceTask[]>("/tasks", { params }).then((res) => setTasks(res.data));
+    if (user?.role === "admin") {
+      api.get<Ship[]>("/ships").then((r) => setShips(r.data));
+      api.get<User[]>("/auth/users").then((r) => setUsers(r.data.filter((u) => u.role === "crew")));
+    }
+  }, [filter.ship_id, filter.status, user]);
 
   async function handleCreate() {
     await api.post("/tasks", form);
     setShowForm(false);
     setForm({ title: "", due_date: "", ship_id: "", description: "", assigned_to: "" });
-    loadTasks();
+    await loadTasks();
   }
 
   async function updateStatus(id: string, status: string) {
     await api.patch(`/tasks/${id}/status`, { status });
-    loadTasks();
+    await loadTasks();
   }
 
   async function addComment(taskId: string) {
     if (!commentText[taskId]) return;
     await api.post(`/tasks/${taskId}/comments`, { content: commentText[taskId] });
     setCommentText({ ...commentText, [taskId]: "" });
-    loadTasks();
+    await loadTasks();
   }
 
   return (

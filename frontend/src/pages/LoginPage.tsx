@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import { useAuth } from "../AuthContext";
 
 export default function LoginPage() {
@@ -15,8 +16,12 @@ export default function LoginPage() {
     try {
       await login(email, password);
       navigate("/");
-    } catch {
-      setError("Invalid credentials");
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(typeof err.response?.data?.detail === "string" ? err.response.data.detail : "Invalid credentials");
+        return;
+      }
+      setError("Unable to sign in right now");
     }
   }
 
@@ -46,7 +51,7 @@ export default function LoginPage() {
           {loading ? "Signing in..." : "Sign In"}
         </button>
         <p className="text-sm text-center text-gray-500">
-          No account? <a href="/register" className="text-blue-600 hover:underline">Register</a>
+          No account? <Link to="/register" className="text-blue-600 hover:underline">Register</Link>
         </p>
       </form>
     </div>

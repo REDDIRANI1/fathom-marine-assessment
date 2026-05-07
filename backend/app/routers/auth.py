@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import User
+from app.models import Ship, User
 from app.schemas import UserCreate, UserLogin, UserOut, TokenOut
 from app.auth import hash_password, verify_password, create_access_token, get_current_user
 
@@ -12,6 +12,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def register(data: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=409, detail="Email already registered")
+    if data.role.value == "crew" and data.ship_id is None:
+        raise HTTPException(status_code=422, detail="Crew members must be assigned to a ship")
+    if data.role.value == "admin" and data.ship_id is not None:
+        raise HTTPException(status_code=422, detail="Administrators cannot be assigned to a ship")
+    if data.ship_id is not None and db.query(Ship).filter(Ship.id == data.ship_id).first() is None:
+        raise HTTPException(status_code=404, detail="Selected ship was not found")
 
     user = User(
         email=data.email,

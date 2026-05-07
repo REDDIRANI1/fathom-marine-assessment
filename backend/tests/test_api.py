@@ -85,6 +85,27 @@ def test_register_login(client):
     })
     assert resp.status_code == 200
 
+def test_crew_registration_requires_ship(client):
+    resp = client.post("/api/v1/auth/register", json={
+        "email": "crew-no-ship@test.com",
+        "password": "test123",
+        "name": "Crew Without Ship",
+        "role": "crew",
+    })
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Crew members must be assigned to a ship"
+
+def test_registration_rejects_unknown_ship(client):
+    resp = client.post("/api/v1/auth/register", json={
+        "email": "crew-bad-ship@test.com",
+        "password": "test123",
+        "name": "Crew Bad Ship",
+        "role": "crew",
+        "ship_id": "00000000-0000-0000-0000-000000000000",
+    })
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Selected ship was not found"
+
 def test_create_ship(client, admin_headers):
     resp = client.post("/api/v1/ships", json={"name": "Ship Alpha"}, headers=admin_headers)
     assert resp.status_code == 201

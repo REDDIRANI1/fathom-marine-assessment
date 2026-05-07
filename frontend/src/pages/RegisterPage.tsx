@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import { useAuth } from "../AuthContext";
 import api from "../api";
 import type { Ship } from "../types";
@@ -27,11 +28,20 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (role === "crew" && !shipId) {
+      setError("Please select a ship");
+      return;
+    }
+
     try {
       await register({ email, password, name, role, ship_id: role === "crew" ? shipId : undefined });
       navigate("/");
-    } catch {
-      setError("Registration failed");
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(typeof err.response?.data?.detail === "string" ? err.response.data.detail : "Registration failed");
+        return;
+      }
+      setError("Unable to create your account right now");
     }
   }
 
@@ -43,7 +53,18 @@ export default function RegisterPage() {
         <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="w-full border rounded px-3 py-2" required />
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border rounded px-3 py-2" required />
         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border rounded px-3 py-2" required />
-        <select value={role} onChange={(e) => { setRole(e.target.value as "admin" | "crew"); setShipId(""); }} className="w-full border rounded px-3 py-2">
+        <select
+          value={role}
+          onChange={(e) => {
+            const nextRole = e.target.value as "admin" | "crew";
+            setRole(nextRole);
+            setShipId("");
+            if (nextRole === "crew" && ships.length === 0) {
+              void loadShips();
+            }
+          }}
+          className="w-full border rounded px-3 py-2"
+        >
           <option value="crew">Crew Member</option>
           <option value="admin">Administrator</option>
         </select>
@@ -65,7 +86,7 @@ export default function RegisterPage() {
           {loading ? "Creating..." : "Register"}
         </button>
         <p className="text-sm text-center text-gray-500">
-          Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign In</a>
+          Already have an account? <Link to="/login" className="text-blue-600 hover:underline">Sign In</Link>
         </p>
       </form>
     </div>
