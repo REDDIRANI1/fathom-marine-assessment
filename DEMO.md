@@ -4,12 +4,13 @@ This project includes a dedicated demo data seeder for loading realistic sample 
 
 ## Seed Command
 
-For Render shell on the API service:
+On Render free tier (no shell access), seeding runs automatically on every service start. The API `startCommand` in [`render.yaml`](./render.yaml) is:
 
 ```bash
-cd /opt/render/project/src/backend
-python -m app.seed_demo
+python -m app.seed_demo && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
+
+Because `seed_demo` is idempotent, it is safe to run on every cold start, restart, or deploy. To re-seed manually, trigger a "Manual Deploy → Restart service" from the Render dashboard.
 
 For local use:
 
