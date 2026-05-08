@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -360,10 +361,20 @@ def upsert_drill(db, demo_drill: DemoDrill, ship_lookup: dict[str, Ship], user_l
     return drill
 
 
+def _reseed_requested() -> bool:
+    return os.getenv("RESEED_ON_START", "").strip().lower() in {"1", "true", "yes"}
+
+
 def seed_demo_data() -> None:
+    if _reseed_requested():
+        print("RESEED_ON_START=true — dropping all tables and re-seeding.")
+        Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        if db.query(User).first() is not None:
+            print("Demo data already present, skipping seed.")
+            return
         ship_lookup = {name: upsert_ship(db, name) for name in DEMO_SHIPS}
         user_lookup = {demo_user.email: upsert_user(db, demo_user, ship_lookup) for demo_user in DEMO_USERS}
         admin_user = user_lookup["admin@fathom.ai"]

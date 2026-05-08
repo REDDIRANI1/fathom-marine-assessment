@@ -10,7 +10,15 @@ On Render free tier (no shell access), seeding runs automatically on every servi
 python -m app.seed_demo && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Because `seed_demo` is idempotent, it is safe to run on every cold start, restart, or deploy. To re-seed manually, trigger a "Manual Deploy → Restart service" from the Render dashboard.
+The seeder runs only when the database is empty (no `users` rows). On subsequent restarts it detects existing data and skips, so any edits you make during a demo are preserved across cold starts.
+
+### Forcing a re-seed (no DB shell needed)
+
+To wipe and re-seed on the Render free tier:
+
+1. In the Render dashboard, open the `fathom-api` service → **Environment**.
+2. Add (or set) the env var `RESEED_ON_START=true` and save. Render auto-restarts the service; on boot it drops all tables, recreates them, and re-seeds.
+3. Once the service is healthy, set `RESEED_ON_START=false` (or delete the var) and restart again so the next deploy doesn't wipe your data.
 
 For local use:
 
