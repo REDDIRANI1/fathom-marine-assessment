@@ -372,9 +372,6 @@ def seed_demo_data() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        if db.query(User).first() is not None:
-            print("Demo data already present, skipping seed.")
-            return
         ship_lookup = {name: upsert_ship(db, name) for name in DEMO_SHIPS}
         user_lookup = {demo_user.email: upsert_user(db, demo_user, ship_lookup) for demo_user in DEMO_USERS}
         admin_user = user_lookup["admin@fathom.ai"]
