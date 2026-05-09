@@ -182,3 +182,53 @@ def test_compliance_calculation(client, admin_headers):
     assert stats["drill_pct"] == 0.0
     assert stats["overdue_tasks"] == 0
     assert stats["missed_drills"] == 0
+
+def test_crew_cannot_list_comments_for_unassigned_task(client, admin_headers):
+    client.post("/api/v1/ships", json={"name": "Comments Ship"}, headers=admin_headers)
+    ship_resp = client.get("/api/v1/ships", headers=admin_headers)
+    ship_id = next(ship["id"] for ship in ship_resp.json() if ship["name"] == "Comments Ship")
+
+    client.post("/api/v1/auth/register", json={
+        "email": "crew-one@fathom.com",
+        "password": "crew123",
+        "name": "Crew One",
+        "role": "crew",
+        "ship_id": ship_id,
+    })
+    crew_one_login = client.post("/api/v1/auth/login", json={
+        "email": "crew-one@fathom.com",
+        "password": "crew123",
+    })
+    crew_one_headers = {"Authorization": f"Bearer {crew_one_login.json()['access_token']}"}
+
+    client.post("/api/v1/auth/register", json={
+        "email": "crew-two@fathom.com",
+        "password": "crew123",
+        "name": "Crew Two",
+        "role": "crew",
+        "ship_id": ship_id,
+    })
+    crew_two_login = client.post("/api/v1/auth/login", json={
+        "email": "crew-two@fathom.com",
+        "password": "crew123",
+    })
+    crew_two_headers = {"Authorization": f"Bearer {crew_two_login.json()['access_token']}"}
+
+    task_resp = client.post("/api/v1/tasks", json={
+        "title": "Restricted task",
+        "due_date": "2026-06-01",
+        "ship_id": ship_id,
+        "assigned_to": crew_one_login.json()["user"]["id"],
+    }, headers=admin_headers)
+    task_id = task_resp.json()["id"]
+
+    comment_resp = client.post(
+        f"/api/v1/tasks/{task_id}/comments",
+        json={"content": "Assigned crew note"},
+        headers=crew_one_headers,
+    )
+    assert comment_resp.status_code == 201
+
+    resp = client.get(f"/api/v1/tasks/{task_id}/comments", headers=crew_two_headers)
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Not assigned to this task"

@@ -72,13 +72,18 @@ Frontend runs on `http://localhost:5173`, API on `http://localhost:8000`.
 - **bcrypt** directly (not passlib) — passlib's detection bug with Python 3.14 caused issues; bcrypt is simpler and just as secure
 - **JWT with RBAC** — stateless auth, role checked via FastAPI dependency injection
 - **Compliance calculated server-side** — single source of truth, avoids frontend computation drift
-- **React Query (TanStack) pattern** via axios interceptors — centralized auth token injection, auto-redirect on 401
+- **Lightweight frontend data flow** using axios + React state/effects — centralized auth token injection and auto-redirect on 401 via axios interceptors
 
 ## Database Schema
 
 6 tables: `ships`, `users`, `maintenance_tasks`, `task_comments`, `safety_drills`, `drill_attendance`
 
 See `backend/app/models.py` for the full SQLAlchemy schema.
+
+## Documentation
+
+- Business flow: `docs/BUSINESS_FLOW.md`
+- Submission notes: `DEMO.md`
 
 ## Demo Credentials
 

@@ -86,4 +86,6 @@ def list_comments(task_id: UUID, db: Session = Depends(get_db), current_user: Us
     task = db.query(MaintenanceTask).filter(MaintenanceTask.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    if current_user.role.value == "crew" and task.assigned_to != current_user.id:
+        raise HTTPException(status_code=403, detail="Not assigned to this task")
     return db.query(TaskComment).filter(TaskComment.task_id == task_id).order_by(TaskComment.created_at.asc()).all()

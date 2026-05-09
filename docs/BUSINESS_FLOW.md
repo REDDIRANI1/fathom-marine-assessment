@@ -66,9 +66,10 @@ Both are highlighted on the dashboard as alerts.
 | Create ships | ✅ | ❌ |
 | Create/edit tasks | ✅ | ❌ |
 | Update task status | ✅ | ✅ (own tasks) |
-| Add comments | ✅ | ✅ |
+| Add/view task comments | ✅ | ✅ (own tasks) |
 | Schedule drills | ✅ | ❌ |
-| Mark drill complete | ✅ | ✅ |
+| Mark drill attendance | ✅ | ✅ (own ship / own record) |
+| Mark drill complete | ✅ | ✅ (own ship) |
 | View compliance dashboard | ✅ (all ships) | ✅ (own ship) |
 
 ## Data Flow
