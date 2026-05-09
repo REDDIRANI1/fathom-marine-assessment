@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import api from "../api";
+import { getApiErrorMessage } from "../apiError";
 import type { SafetyDrill, Ship, User } from "../types";
 
 export default function DrillsPage() {
@@ -12,6 +13,7 @@ export default function DrillsPage() {
   const [attendanceUsers, setAttendanceUsers] = useState<User[]>([]);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, boolean>>({});
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     drill_type: "",
@@ -21,30 +23,46 @@ export default function DrillsPage() {
   });
 
   useEffect(() => {
-    loadDrills();
-    if (user?.role === "admin") api.get<Ship[]>("/ships").then((r) => setShips(r.data));
+    void loadDrills();
+    if (user?.role === "admin") api.get<Ship[]>("/ships").then((r) => setShips(r.data)).catch(() => {});
   }, [user]);
 
   async function loadDrills() {
-    const res = await api.get<SafetyDrill[]>("/drills");
-    setDrills(res.data);
+    try {
+      const res = await api.get<SafetyDrill[]>("/drills");
+      setDrills(res.data);
+      setError("");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to load drills"));
+    }
   }
 
   async function handleCreate() {
-    await api.post("/drills", form);
-    setShowForm(false);
-    setForm({ drill_type: "", scheduled_date: "", ship_id: "", description: "" });
-    loadDrills();
+    setError("");
+    try {
+      await api.post("/drills", form);
+      setShowForm(false);
+      setForm({ drill_type: "", scheduled_date: "", ship_id: "", description: "" });
+      await loadDrills();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to schedule drill"));
+    }
   }
 
   async function markComplete(id: string) {
-    await api.patch(`/drills/${id}/complete`);
-    loadDrills();
+    setError("");
+    try {
+      await api.patch(`/drills/${id}/complete`);
+      await loadDrills();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to mark drill complete"));
+    }
   }
 
   async function openAttendance(drillId: string) {
     setSelectedDrill(drillId);
     setAttendanceMap({});
+    setError("");
     try {
       const [usersRes, recordsRes] = await Promise.all([
         api.get<User[]>("/auth/users"),
@@ -54,8 +72,10 @@ export default function DrillsPage() {
       const recMap: Record<string, boolean> = {};
       recordsRes.data.forEach((r) => { recMap[r.user_id] = r.attended; });
       setAttendanceRecords(recMap);
-    } catch {
-      // crew users get filtered list
+    } catch (err) {
+      setAttendanceUsers([]);
+      setAttendanceRecords({});
+      setError(getApiErrorMessage(err, "Unable to load attendance details"));
     }
   }
 
@@ -63,9 +83,14 @@ export default function DrillsPage() {
     if (!selectedDrill) return;
     const entries = Object.entries(attendanceMap).map(([user_id, attended]) => ({ user_id, attended }));
     if (entries.length === 0) return;
-    await api.post(`/drills/${selectedDrill}/attendance`, entries);
-    setSelectedDrill(null);
-    loadDrills();
+    setError("");
+    try {
+      await api.post(`/drills/${selectedDrill}/attendance`, entries);
+      setSelectedDrill(null);
+      await loadDrills();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to save attendance"));
+    }
   }
 
   function getShipLabel(drill: SafetyDrill) {
@@ -82,6 +107,8 @@ export default function DrillsPage() {
           </button>
         )}
       </div>
+
+      {error && <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {showForm && (
         <div className="bg-white rounded-lg shadow p-4 space-y-3">

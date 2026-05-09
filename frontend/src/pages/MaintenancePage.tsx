@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import api from "../api";
+import { getApiErrorMessage } from "../apiError";
 import type { MaintenanceTask, Ship, User } from "../types";
 
 export default function MaintenancePage() {
@@ -11,6 +12,7 @@ export default function MaintenancePage() {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState({ status: "", ship_id: "" });
   const [commentText, setCommentText] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({ title: "", due_date: "", ship_id: "", description: "", assigned_to: "" });
 
@@ -26,30 +28,50 @@ export default function MaintenancePage() {
     const params: Record<string, string> = {};
     if (filter.status) params.status = filter.status;
     if (filter.ship_id) params.ship_id = filter.ship_id;
-    api.get<MaintenanceTask[]>("/tasks", { params }).then((res) => setTasks(res.data));
+    api.get<MaintenanceTask[]>("/tasks", { params })
+      .then((res) => {
+        setTasks(res.data);
+        setError("");
+      })
+      .catch((err) => setError(getApiErrorMessage(err, "Unable to load maintenance tasks")));
     if (user?.role === "admin") {
-      api.get<Ship[]>("/ships").then((r) => setShips(r.data));
-      api.get<User[]>("/auth/users").then((r) => setUsers(r.data.filter((u) => u.role === "crew")));
+      api.get<Ship[]>("/ships").then((r) => setShips(r.data)).catch(() => {});
+      api.get<User[]>("/auth/users").then((r) => setUsers(r.data.filter((u) => u.role === "crew"))).catch(() => {});
     }
   }, [filter.ship_id, filter.status, user]);
 
   async function handleCreate() {
-    await api.post("/tasks", form);
-    setShowForm(false);
-    setForm({ title: "", due_date: "", ship_id: "", description: "", assigned_to: "" });
-    await loadTasks();
+    setError("");
+    try {
+      await api.post("/tasks", form);
+      setShowForm(false);
+      setForm({ title: "", due_date: "", ship_id: "", description: "", assigned_to: "" });
+      await loadTasks();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to create task"));
+    }
   }
 
   async function updateStatus(id: string, status: string) {
-    await api.patch(`/tasks/${id}/status`, { status });
-    await loadTasks();
+    setError("");
+    try {
+      await api.patch(`/tasks/${id}/status`, { status });
+      await loadTasks();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to update task status"));
+    }
   }
 
   async function addComment(taskId: string) {
     if (!commentText[taskId]) return;
-    await api.post(`/tasks/${taskId}/comments`, { content: commentText[taskId] });
-    setCommentText({ ...commentText, [taskId]: "" });
-    await loadTasks();
+    setError("");
+    try {
+      await api.post(`/tasks/${taskId}/comments`, { content: commentText[taskId] });
+      setCommentText({ ...commentText, [taskId]: "" });
+      await loadTasks();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to add comment"));
+    }
   }
 
   function getShipLabel(task: MaintenanceTask) {
@@ -66,6 +88,8 @@ export default function MaintenancePage() {
           </button>
         )}
       </div>
+
+      {error && <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {showForm && (
         <div className="bg-white rounded-lg shadow p-4 space-y-3">
