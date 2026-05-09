@@ -52,6 +52,10 @@ export default function MaintenancePage() {
     await loadTasks();
   }
 
+  function getShipLabel(task: MaintenanceTask) {
+    return task.ship_name || task.ship_id;
+  }
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
@@ -101,7 +105,7 @@ export default function MaintenancePage() {
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-semibold text-lg">{task.title}</h3>
-                <p className="text-sm text-gray-500">Due: {task.due_date} · Ship: {task.ship_name || task.ship_id}</p>
+                <p className="text-sm text-gray-500">Due: {task.due_date} · Ship: {getShipLabel(task)}</p>
                 <div className="flex gap-2 mt-2">
                   {(["pending", "in_progress", "completed"] as const).map((s) => (
                     <button

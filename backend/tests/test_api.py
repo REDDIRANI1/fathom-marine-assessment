@@ -126,10 +126,12 @@ def test_task_lifecycle(client, admin_headers):
     }, headers=admin_headers)
     assert resp.status_code == 201
     task_id = resp.json()["id"]
+    assert resp.json()["ship_name"] == "Task Ship"
 
     resp = client.patch(f"/api/v1/tasks/{task_id}/status", json={"status": "in_progress"}, headers=admin_headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "in_progress"
+    assert resp.json()["ship_name"] == "Task Ship"
 
     resp = client.post(f"/api/v1/tasks/{task_id}/comments", json={"content": "Working on it"}, headers=admin_headers)
     assert resp.status_code == 201
@@ -150,10 +152,12 @@ def test_drill_lifecycle(client, admin_headers):
     }, headers=admin_headers)
     assert resp.status_code == 201
     drill_id = resp.json()["id"]
+    assert resp.json()["ship_name"] == "Drill Ship"
 
     resp = client.patch(f"/api/v1/drills/{drill_id}/complete", headers=admin_headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "completed"
+    assert resp.json()["ship_name"] == "Drill Ship"
 
 def test_compliance_calculation(client, admin_headers):
     resp = client.post("/api/v1/ships", json={"name": "Compliance Ship"}, headers=admin_headers)

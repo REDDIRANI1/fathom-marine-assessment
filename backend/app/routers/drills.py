@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from uuid import UUID
 from app.database import get_db
@@ -9,6 +9,11 @@ from app.auth import get_current_user, require_admin
 
 router = APIRouter(prefix="/drills", tags=["drills"])
 
+
+def attach_ship_name(drill: SafetyDrill) -> SafetyDrill:
+    drill.ship_name = drill.ship.name if drill.ship else None
+    return drill
+
 @router.get("", response_model=List[DrillOut])
 def list_drills(
     ship_id: Optional[UUID] = Query(None),
@@ -17,7 +22,7 @@ def list_drills(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(SafetyDrill)
+    query = db.query(SafetyDrill).options(joinedload(SafetyDrill.ship))
 
     if current_user.role.value == "crew":
         if current_user.ship_id:
@@ -32,7 +37,8 @@ def list_drills(
     if drill_type:
         query = query.filter(SafetyDrill.drill_type == drill_type)
 
-    return query.order_by(SafetyDrill.scheduled_date.asc()).all()
+    drills = query.order_by(SafetyDrill.scheduled_date.asc()).all()
+    return [attach_ship_name(drill) for drill in drills]
 
 @router.post("", response_model=DrillOut, status_code=201)
 def create_drill(data: DrillCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
@@ -46,7 +52,7 @@ def create_drill(data: DrillCreate, db: Session = Depends(get_db), current_user:
     db.add(drill)
     db.commit()
     db.refresh(drill)
-    return drill
+    return attach_ship_name(drill)
 
 @router.post("/{drill_id}/attendance", response_model=List[AttendanceOut], status_code=201)
 def mark_attendance(drill_id: UUID, data: List[AttendanceCreate], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -91,7 +97,7 @@ def get_attendance(drill_id: UUID, db: Session = Depends(get_db), current_user: 
 
 @router.patch("/{drill_id}/complete", response_model=DrillOut)
 def complete_drill(drill_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    drill = db.query(SafetyDrill).filter(SafetyDrill.id == drill_id).first()
+    drill = db.query(SafetyDrill).options(joinedload(SafetyDrill.ship)).filter(SafetyDrill.id == drill_id).first()
     if not drill:
         raise HTTPException(status_code=404, detail="Drill not found")
     if current_user.role.value == "crew" and current_user.ship_id != drill.ship_id:
@@ -99,4 +105,4 @@ def complete_drill(drill_id: UUID, db: Session = Depends(get_db), current_user: 
     drill.status = "completed"
     db.commit()
     db.refresh(drill)
-    return drill
+    return attach_ship_name(drill)

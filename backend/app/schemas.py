@@ -61,6 +61,7 @@ class TaskOut(BaseModel):
     status: TaskStatus
     due_date: date
     ship_id: UUID
+    ship_name: Optional[str] = None
     assigned_to: Optional[UUID] = None
     created_by: UUID
     created_at: datetime
@@ -95,6 +96,7 @@ class DrillOut(BaseModel):
     scheduled_date: date
     status: DrillStatus
     ship_id: UUID
+    ship_name: Optional[str] = None
     created_by: UUID
     created_at: datetime
 

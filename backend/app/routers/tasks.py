@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from uuid import UUID
 from app.database import get_db
@@ -9,6 +9,11 @@ from app.auth import get_current_user, require_admin
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
+
+def attach_ship_name(task: MaintenanceTask) -> MaintenanceTask:
+    task.ship_name = task.ship.name if task.ship else None
+    return task
+
 @router.get("", response_model=List[TaskOut])
 def list_tasks(
     ship_id: Optional[UUID] = Query(None),
@@ -17,7 +22,7 @@ def list_tasks(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(MaintenanceTask)
+    query = db.query(MaintenanceTask).options(joinedload(MaintenanceTask.ship))
 
     if current_user.role.value == "crew":
         query = query.filter(MaintenanceTask.assigned_to == current_user.id)
@@ -29,7 +34,8 @@ def list_tasks(
     if assigned_to and current_user.role.value == "admin":
         query = query.filter(MaintenanceTask.assigned_to == assigned_to)
 
-    return query.order_by(MaintenanceTask.due_date.asc()).all()
+    tasks = query.order_by(MaintenanceTask.due_date.asc()).all()
+    return [attach_ship_name(task) for task in tasks]
 
 @router.post("", response_model=TaskOut, status_code=201)
 def create_task(data: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
@@ -44,11 +50,11 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db), current_user: U
     db.add(task)
     db.commit()
     db.refresh(task)
-    return task
+    return attach_ship_name(task)
 
 @router.patch("/{task_id}/status", response_model=TaskOut)
 def update_task_status(task_id: UUID, data: TaskStatusUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = db.query(MaintenanceTask).filter(MaintenanceTask.id == task_id).first()
+    task = db.query(MaintenanceTask).options(joinedload(MaintenanceTask.ship)).filter(MaintenanceTask.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -58,7 +64,7 @@ def update_task_status(task_id: UUID, data: TaskStatusUpdate, db: Session = Depe
     task.status = data.status
     db.commit()
     db.refresh(task)
-    return task
+    return attach_ship_name(task)
 
 @router.post("/{task_id}/comments", response_model=CommentOut, status_code=201)
 def add_comment(task_id: UUID, data: CommentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

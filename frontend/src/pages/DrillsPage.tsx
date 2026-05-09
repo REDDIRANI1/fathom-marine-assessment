@@ -68,6 +68,10 @@ export default function DrillsPage() {
     loadDrills();
   }
 
+  function getShipLabel(drill: SafetyDrill) {
+    return drill.ship_name || drill.ship_id;
+  }
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
@@ -124,7 +128,7 @@ export default function DrillsPage() {
           <div key={drill.id} className="bg-white rounded-lg shadow p-4 flex justify-between items-center">
             <div>
               <h3 className="font-semibold text-lg capitalize">{drill.drill_type.replace("_", " ")} Drill</h3>
-              <p className="text-sm text-gray-500">Scheduled: {drill.scheduled_date} · Ship: {drill.ship_name || drill.ship_id}</p>
+              <p className="text-sm text-gray-500">Scheduled: {drill.scheduled_date} · Ship: {getShipLabel(drill)}</p>
             </div>
             <div className="flex items-center gap-3">
               <span className={`px-2 py-1 rounded text-xs font-medium ${
