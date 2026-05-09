@@ -232,3 +232,60 @@ def test_crew_cannot_list_comments_for_unassigned_task(client, admin_headers):
     resp = client.get(f"/api/v1/tasks/{task_id}/comments", headers=crew_two_headers)
     assert resp.status_code == 403
     assert resp.json()["detail"] == "Not assigned to this task"
+
+def test_task_assignment_requires_crew_from_same_ship(client, admin_headers):
+    ship_a = client.post("/api/v1/ships", json={"name": "Assignment Ship A"}, headers=admin_headers).json()["id"]
+    ship_b = client.post("/api/v1/ships", json={"name": "Assignment Ship B"}, headers=admin_headers).json()["id"]
+
+    client.post("/api/v1/auth/register", json={
+        "email": "cross-ship-crew@fathom.com",
+        "password": "crew123",
+        "name": "Cross Ship Crew",
+        "role": "crew",
+        "ship_id": ship_b,
+    })
+    crew_login = client.post("/api/v1/auth/login", json={
+        "email": "cross-ship-crew@fathom.com",
+        "password": "crew123",
+    })
+    crew_id = crew_login.json()["user"]["id"]
+
+    resp = client.post("/api/v1/tasks", json={
+        "title": "Cross-ship task",
+        "due_date": "2026-06-01",
+        "ship_id": ship_a,
+        "assigned_to": crew_id,
+    }, headers=admin_headers)
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Assigned crew member must belong to the selected ship"
+
+def test_drill_attendance_requires_crew_from_same_ship(client, admin_headers):
+    ship_a = client.post("/api/v1/ships", json={"name": "Attendance Ship A"}, headers=admin_headers).json()["id"]
+    ship_b = client.post("/api/v1/ships", json={"name": "Attendance Ship B"}, headers=admin_headers).json()["id"]
+
+    drill_id = client.post("/api/v1/drills", json={
+        "drill_type": "fire",
+        "scheduled_date": "2026-06-15",
+        "ship_id": ship_a,
+    }, headers=admin_headers).json()["id"]
+
+    client.post("/api/v1/auth/register", json={
+        "email": "other-ship-crew@fathom.com",
+        "password": "crew123",
+        "name": "Other Ship Crew",
+        "role": "crew",
+        "ship_id": ship_b,
+    })
+    crew_login = client.post("/api/v1/auth/login", json={
+        "email": "other-ship-crew@fathom.com",
+        "password": "crew123",
+    })
+    crew_id = crew_login.json()["user"]["id"]
+
+    resp = client.post(
+        f"/api/v1/drills/{drill_id}/attendance",
+        json=[{"user_id": crew_id, "attended": True}],
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Attendance user must belong to the drill's ship"

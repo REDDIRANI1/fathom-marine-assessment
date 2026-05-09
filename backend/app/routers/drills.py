@@ -67,8 +67,21 @@ def mark_attendance(drill_id: UUID, data: List[AttendanceCreate], db: Session = 
     else:
         filtered = data
 
+    users_by_id = {
+        user.id: user
+        for user in db.query(User).filter(User.id.in_([entry.user_id for entry in filtered])).all()
+    } if filtered else {}
+
     records = []
     for entry in filtered:
+        attendance_user = users_by_id.get(entry.user_id)
+        if attendance_user is None:
+            raise HTTPException(status_code=404, detail="Attendance user was not found")
+        if attendance_user.role.value != "crew":
+            raise HTTPException(status_code=422, detail="Attendance can only be recorded for crew members")
+        if attendance_user.ship_id != drill.ship_id:
+            raise HTTPException(status_code=422, detail="Attendance user must belong to the drill's ship")
+
         existing = db.query(DrillAttendance).filter(
             DrillAttendance.drill_id == drill_id,
             DrillAttendance.user_id == entry.user_id,

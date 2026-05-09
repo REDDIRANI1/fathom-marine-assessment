@@ -39,6 +39,15 @@ def list_tasks(
 
 @router.post("", response_model=TaskOut, status_code=201)
 def create_task(data: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    if data.assigned_to is not None:
+        assigned_user = db.query(User).filter(User.id == data.assigned_to).first()
+        if assigned_user is None:
+            raise HTTPException(status_code=404, detail="Assigned crew member was not found")
+        if assigned_user.role.value != "crew":
+            raise HTTPException(status_code=422, detail="Tasks can only be assigned to crew members")
+        if assigned_user.ship_id != data.ship_id:
+            raise HTTPException(status_code=422, detail="Assigned crew member must belong to the selected ship")
+
     task = MaintenanceTask(
         title=data.title,
         description=data.description,
